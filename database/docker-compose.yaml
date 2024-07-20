@@ -1,0 +1,23 @@
+networks:
+  nginx_proxy:
+    external: true
+
+volumes:
+  data:
+
+services:
+  database:
+    image: postgres:16.3
+    container_name: database
+    restart: always
+    volumes:
+      - data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - nginx_proxy
+    ports:
+      # Connect to postgres server and create keycloak database before start keycloak
+      - "5432:5432"

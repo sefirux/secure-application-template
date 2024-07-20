@@ -1,0 +1,30 @@
+networks:
+  nginx_proxy:
+    external: true
+
+volumes:
+  keycloak_data:
+
+services:
+  keycloak:
+    build: .
+    restart: always
+    command: ["start", "--optimized", "--hostname-strict=false"]
+    environment:
+      # keycloak config
+      KC_DB_URL: jdbc:postgresql://database:5432/keycloak
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # enable nginx as proxy for keycloak
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: true
+      # nginx config
+      VIRTUAL_HOST: ${HOSTNAME}
+      VIRTUAL_PORT: 8080
+      LETSENCRYPT_HOST: ${HOSTNAME}
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - nginx_proxy

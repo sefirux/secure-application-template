@@ -1,0 +1,51 @@
+networks:
+  # WARNING
+  # Create external network nginx_proxy before start compose
+  # Command: docker network create nginx_proxy
+  nginx_proxy:
+    external: true
+
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    container_name: nginx-proxy
+    restart: always
+    networks:
+      - nginx_proxy
+    ports:
+      # Port  80: Required for HTTP-01 challenges to `acme-companion`.
+      # Port 443: Only required for containers that need access over HTTPS. TLS-ALPN-01 challenge not supported.
+      - "80:80"
+      - "443:443"
+    environment:
+      - TRUST_DOWNSTREAM_PROXY=true
+    volumes:
+      # `certs/`:      Managed by the `acme-companion` container (_read-only_).
+      # `docker.sock`: Required to interact with containers via the Docker API.
+      - /etc/nginx/html/:/usr/share/nginx/html/
+      - /etc/nginx/vhost.d/:/etc/nginx/vhost.d/
+      - /etc/nginx/certs/:/etc/nginx/certs/:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: acme-companion
+    restart: always
+    networks:
+      - nginx_proxy
+    environment:
+      # When `volumes_from: [nginx-proxy]` is not supported,
+      # reference the _reverse-proxy_ `container_name` here:
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+      - DEFAULT_EMAIL=${LETSENCRYPT_USER_EMAIL}
+    volumes:
+      # `html/`:       Write ACME HTTP-01 challenge files that `nginx-proxy` will serve.
+      # `vhost.d/`:    To enable web access via `nginx-proxy` to HTTP-01 challenge files.
+      # `certs/`:      To store certificates and private keys.
+      # `acme.sh/`: To persist config and state for the ACME provisioner (`acme.sh`).
+      # `docker.sock`: Required to interact with containers via the Docker API.
+      - /etc/nginx/html/:/usr/share/nginx/html/
+      - /etc/nginx/vhost.d/:/etc/nginx/vhost.d/
+      - /etc/nginx/certs/:/etc/nginx/certs/:rw
+      - /etc/nginx/acme.sh/:/etc/acme.sh/
+      - /var/run/docker.sock:/var/run/docker.sock:ro
